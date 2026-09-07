@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Briç Turnuva Fotoğraf İşleyici</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 500px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h2 { color: #2c3e50; }
+        .input-group {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        input[type="number"] {
+            width: 80px;
+            padding: 8px;
+            font-size: 18px;
+            text-align: center;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-capture { background-color: #3498db; }
+        .btn-download { background-color: #2ecc71; }
+        #preview {
+            max-width: 100%;
+            height: auto;
+            margin-top: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        #status {
+            font-weight: bold;
+            color: #7f8c8d;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Briç El Kayıt Sistemi</h2>
+    
+    <div class="input-group">
+        <label for="bordNo">Bord No: </label>
+        <input type="number" id="bordNo" value="1" min="1" max="36">
+    </div>
+
+    <!-- Gizli Dosya Seçici: Telefonun kamerasını 1x modunda tetikler -->
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+    
+    <button class="btn btn-capture" onclick="document.getElementById('cameraInput').click()">📷 FOTOĞRAF ÇEK</button>
+    
+    <img id="preview" alt="Önizleme">
+    <div id="status">Hazır. Fotoğraf çekilmesi bekleniyor...</div>
+    
+    <button class="btn btn-download" id="downloadBtn" style="display: none;" onclick="indirMetinDosyasi()">💾 BIRIKIMLI TXT INDIR</button>
+</div>
+
+<script>
+    // Turnuva boyunca tüm Base64 metinlerini hafızada biriktirecek ana değişken
+    let turnuvaHafizasi = "";
+
+    document.getElementById('cameraInput').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        document.getElementById('status').innerText = "Resim sıkıştırılıyor, lütfen bekleyin...";
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                // ÖNEMLİ: Çözünürlüğü (pikselleri) ASLA düşürmüyoruz, orijinal boyutu koruyoruz
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0, img.width, img.height);
+
+                // AKILLI SIKIŞTIRMA: Çözünürlüğü bozmadan JPEG kalitesini %60'a çekerek dosyayı hafifletiyoruz
+                const kaliteliSikistirilmisBase64 = canvas.toDataURL('image/jpeg', 0.60);
+
+                // Önizlemeyi göster (Kontrol amaçlı)
+                const previewImg = document.getElementById('preview');
+                previewImg.src = kaliteliSikistirilmisBase64;
+                previewImg.style.display = "block";
+
+                // Veriyi birikimli hafızaya ekle
+                const bordNo = document.getElementById('bordNo').value;
+                turnuvaHafizasi += `--- BORD_${bordNo} ---\n${kaliteliSikistirilmisBase64}\n\n`;
+
+                document.getElementById('status').innerText = `Bord ${bordNo} başarıyla hafızaya eklendi!`;
+                document.getElementById('downloadBtn').style.display = "block";
+                
+                // Bir sonraki bord numarasına otomatik geç (Pratiklik için)
+                document.getElementById('bordNo').value = parseInt(bordNo) + 1;
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    function indirMetinDosyasi() {
+        const blob = new Blob([turnuvaHafizasi], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'turnuva_guncel_yedek.txt';
+        link.click();
+        document.getElementById('status').innerText = "Birikimli TXT başarıyla indirildi!";
+    }
+</script>
+
+</body>
+</html>
